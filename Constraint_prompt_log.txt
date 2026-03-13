@@ -1,5 +1,5 @@
-## Student Name:
-## Student ID: 
+## Student Name: Yifan Wang
+## Student ID: 218140046
 
 Prompt #1: 
 I need help translating the two Lab 9 personas (Jane Adams and Mo Rodriguez) into testable software constraints for my single-event registration system with a waitlist. Please help me derive persona-based system constraints, acceptance criteria, edge cases, and tie-breaking rules that can be applied to my existing Lab 8 implementation.
