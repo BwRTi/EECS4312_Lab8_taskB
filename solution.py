@@ -1,119 +1,80 @@
-## Student Name:
-## Student ID:
-
-"""
-Task B: Event Registration with Waitlist (Stub)
-In this lab, you will design and implement an Event Registration with Waitlist system using an LLM assistant as your primary programming collaborator. 
-You are asked to implement a Python module that manages registration for a single event with a fixed capacity. 
-The system must:
-•	Accept a fixed capacity.
-•	Register users until capacity is reached.
-•	Place additional users into a FIFO waitlist.
-•	Automatically promote the earliest waitlisted user when a registered user cancels.
-•	Prevent duplicate registrations.
-•	Allow users to query their current status.
-
-The system must ensure that:
-•	The number of registered users never exceeds capacity.
-•	Waitlist ordering preserves FIFO behavior.
-•	Promotions occur deterministically under identical operation sequences.
-
-The module must preserve the following invariants:
-•	A user may not appear more than once in the system.
-•	A user may not simultaneously exist in multiple states.
-•	The system state must remain consistent after every operation.
-
-The system must correctly handle non-trivial scenarios such as:
-•	Multiple cancellations in sequence.
-•	Users attempting to re-register after canceling.
-•	Waitlisted users canceling before promotion.
-•	Capacity equal to zero.
-•	Simultaneous or rapid consecutive operations.
-•	Queries during state transitions.
-
-The output consists of the updated registration state and ordered lists of registered and waitlisted users after each operation.
-"""
-
-from dataclasses import dataclass
-from typing import List, Optional
-
-
-class DuplicateRequest(Exception):
-    """Raised if a user tries to register but is already registered or waitlisted."""
-    pass
-
-
-class NotFound(Exception):
-    """Raised if a user cannot be found for cancellation (if required by handout)."""
-    pass
-
-
-@dataclass(frozen=True)
-class UserStatus:
-    """
-    state:
-      - "registered"
-      - "waitlisted"
-      - "none"
-    position: 1-based waitlist position if waitlisted; otherwise None
-    """
-    state: str
-    position: Optional[int] = None
-
+## Student Name:Yifan Wang
+## Student ID:218140046
 
 class EventRegistration:
     """
-    Students must implement this class per the lab handout.
-    Deterministic ordering is required (e.g., FIFO waitlist, predictable registration order).
+    Manages event registrations for a single event with a fixed capacity and FIFO waitlist.
+    Successful state-changing operations return one concise summary plus the updated state.
+    Invalid operations raise ValueError with descriptive messages.
     """
 
-    def __init__(self, capacity: int) -> None:
-        """
-        Args:
-            capacity: maximum number of registered users (>= 0)
-        """
-        # TODO: Initialize internal data structures
-        raise NotImplementedError("EventRegistration.__init__ not implemented yet")
+    def __init__(self, capacity: int):
+        if capacity < 0:
+            raise ValueError("Capacity cannot be negative.")
 
-    def register(self, user_id: str) -> UserStatus:
-        """
-        Register a user:
-          - if capacity available -> registered
-          - else -> waitlisted (FIFO)
+        self.capacity = capacity
+        self.registered = []
+        self.waitlisted = []
+        self._user_status = {}
 
-        Raises:
-            DuplicateRequest if user already exists (registered or waitlisted)
-        """
-        # TODO: Implement per lab handout
-        raise NotImplementedError("register not implemented yet")
+    def _state_snapshot(self) -> dict:
+        return {
+            "capacity": self.capacity,
+            "registered": list(self.registered),
+            "waitlisted": list(self.waitlisted),
+        }
 
-    def cancel(self, user_id: str) -> None:
-        """
-        Cancel a user:
-          - if registered -> remove and promote earliest waitlisted user (if any)
-          - if waitlisted -> remove from waitlist
-          - behavior when user not found depends on handout (raise NotFound or ignore)
+    def _success_response(self, summary: str) -> dict:
+        snapshot = self._state_snapshot()
+        return {
+            "summary": summary,
+            **snapshot,
+        }
 
-        Raises:
-            NotFound (if required by handout)
-        """
-        # TODO: Implement per lab handout
-        raise NotImplementedError("cancel not implemented yet")
+    def register(self, email: str) -> dict:
+        if email in self._user_status:
+            raise ValueError(
+                f"Registration failed: '{email}' is already in the system as '{self._user_status[email]}'."
+            )
 
-    def status(self, user_id: str) -> UserStatus:
-        """
-        Return status of a user:
-          - registered
-          - waitlisted with position (1-based)
-          - none
-        """
-        # TODO: Implement per lab handout
-        raise NotImplementedError("status not implemented yet")
+        if len(self.registered) < self.capacity:
+            self.registered.append(email)
+            self._user_status[email] = "Registered"
+            return self._success_response(f"{email} registered successfully.")
 
-    def snapshot(self) -> dict:
-        """
-        (Optional helper for debugging/tests)
-        Return a deterministic snapshot of internal state.
-        """
-        # TODO: Implement if required/allowed
-        raise NotImplementedError("snapshot not implemented yet")
+        self.waitlisted.append(email)
+        self._user_status[email] = "Waitlisted"
+        return self._success_response(
+            f"{email} was added to the waitlist because the event is full."
+        )
+
+    def cancel(self, email: str) -> dict:
+        if email not in self._user_status:
+            raise ValueError(
+                f"Cancellation failed: '{email}' is not registered or waitlisted."
+            )
+
+        current_status = self._user_status[email]
+
+        if current_status == "Registered":
+            self.registered.remove(email)
+            del self._user_status[email]
+
+            if self.waitlisted:
+                promoted_user = self.waitlisted.pop(0)
+                self.registered.append(promoted_user)
+                self._user_status[promoted_user] = "Registered"
+                return self._success_response(
+                    f"{email} cancelled. {promoted_user} was promoted from the waitlist because a registered spot became available."
+                )
+
+            return self._success_response(
+                f"{email} cancelled successfully. No waitlisted user was promoted."
+            )
+
+        self.waitlisted.remove(email)
+        del self._user_status[email]
+        return self._success_response(f"{email} was removed from the waitlist.")
+
+    def get_status(self, email: str) -> str:
+        return self._user_status.get(email, "Not Registered")
