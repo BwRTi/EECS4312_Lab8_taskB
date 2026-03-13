@@ -1,6 +1,12 @@
 ## Student Name:
 ## Student ID: 
 
-Prompt #1: {}
-Response #1: {}
+Prompt #1: 
+I need help translating the two Lab 9 personas (Jane Adams and Mo Rodriguez) into testable software constraints for my single-event registration system with a waitlist. Please help me derive persona-based system constraints, acceptance criteria, edge cases, and tie-breaking rules that can be applied to my existing Lab 8 implementation.
+
+Response #1: 
+The model helped translate Jane’s needs into constraints about predictable ordering, automation, and concise output, and translated Mo’s needs into constraints about explanations, explicit edge-case handling, and deterministic repeated behavior. I used the suggestions as candidate constraints and then aligned them with the actual behavior of my Lab 8 implementation.
+
+Decision:
+Modify
 --------------------------------------------------
