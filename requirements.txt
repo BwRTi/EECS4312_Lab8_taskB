@@ -1,4 +1,217 @@
-## Student Name:
-## Student ID: 
+## Student Name: Yifan Wang
+## Student ID: 218140046
 
-Requirements #1:
+## 1. Problem Understanding
+
+System purpose:
+The system manages registration for a single event with a fixed capacity and a waitlist.
+
+Inputs to the system:
+- event capacity during initialization
+- user email string for register(email)
+- user email string for cancel(email)
+- user email string for get_status(email)
+
+Outputs produced by the system:
+- for successful register/cancel operations: one concise outcome summary message and one updated state snapshot
+- updated ordered registered list
+- updated ordered waitlisted list
+- status query result: "Registered", "Waitlisted", or "Not Registered"
+- descriptive ValueError messages for invalid operations
+
+Primary goal of the system:
+The system should manage event registration in a way that is predictable, automatic, concise, and explainable for both Jane and Mo.
+
+---
+
+## 2. Assumptions
+
+A1: Each user is identified by a unique email string.
+A2: Equality is based on normal string equality and is case-sensitive.
+A3: The system runs in a single-threaded environment.
+A4: Event capacity is a non-negative integer and remains constant for the lifetime of the EventRegistration instance.
+A5: If a user cancels and later re-registers, that user is treated as a brand-new request.
+A6: Successful state-changing operations return a dictionary containing one concise outcome summary message plus the updated system state snapshot.
+A7: Invalid operations such as duplicate registration and cancellation of a non-existent user raise ValueError with descriptive messages.
+A8: The waitlist may grow without an explicit size limit.
+
+---
+
+## 3. Functional Requirements
+
+FR1: The system shall initialize with a fixed event capacity and maintain two ordered collections: registered and waitlisted.
+
+FR2: The system shall register users directly into the registered list until capacity is reached.
+
+FR3: The system shall place additional users into the waitlist in strict FIFO order once the event is full.
+
+FR4: The system shall cancel registered users and, if the waitlist is non-empty, atomically promote the earliest waitlisted user into the registered list within the same cancellation operation.
+
+FR5: The system shall cancel waitlisted users without promoting anyone and without disturbing the FIFO order of the remaining waitlisted users.
+
+FR6: The system shall reject duplicate registration attempts and invalid cancellation requests explicitly.
+
+FR7: The system shall return exactly one concise outcome summary message together with one updated state snapshot after every successful register or cancel operation.
+
+FR8: The system shall provide deterministic behavior such that identical operation sequences from a fresh system state produce identical summaries and final states.
+
+FR9: The system shall immediately reflect completed state changes through get_status(email).
+
+---
+
+## 4. System Constraints
+
+C1: The system shall preserve strict FIFO ordering in the waitlist and shall promote users deterministically under identical operation sequences.
+Derived from persona attribute: Jane – predictable and stable ordering
+
+C2: The system shall automatically fill a newly opened registered spot using the first waitlisted user without requiring any manual follow-up action.
+Derived from persona attribute: Jane – automatic conflict handling
+
+C3: Each successful state-changing operation shall return exactly one concise outcome summary message describing the result, together with one updated state snapshot. The state snapshot shall include capacity, registered, and waitlisted only.
+Derived from persona attribute: Jane – limited notification overload; Mo – clear explanations
+
+C4: The system shall produce the same registered and waitlisted ordering, as well as the same successful summary messages, for the same sequence of operations every time.
+Derived from persona attribute: Jane – consistency; Mo – deterministic behavior
+
+C5: The system shall reject duplicate registration attempts with an explicit descriptive ValueError indicating that the user is already in the system.
+Derived from persona attribute: Mo – clear explanations when actions are rejected
+
+C6: The system shall reject cancellation requests for users not currently in the system with an explicit descriptive ValueError instead of failing silently.
+Derived from persona attribute: Mo – explicit edge-case handling
+
+C7: When a registered user cancellation triggers a waitlist promotion, the response shall explicitly identify the promoted user and state that the promotion occurred because a registered spot became available.
+Derived from persona attribute: Mo – clear explanations when waitlist promotions occur
+
+C8: The system shall handle boundary scenarios deterministically, including zero capacity, waitlist cancellation, and re-registration after cancellation.
+Derived from persona attribute: Mo – consistent behavior across repeated or boundary scenarios
+
+C9: Promotion triggered by cancellation shall occur atomically within the same cancellation operation.
+Derived from persona attribute: Jane – automatic handling; Mo – deterministic behavior
+
+C10: The registered list shall preserve deterministic order. Users registered directly are appended in registration order, and users promoted from the waitlist are appended to the end of the registered list.
+Derived from persona attribute: Jane – stable ordering
+
+C11: Identical invalid operations performed repeatedly shall produce identical responses and leave the system state unchanged.
+Derived from persona attribute: Mo – repeated-operation consistency
+
+C12: A user email shall appear in at most one list at any time, the union of registered and waitlisted users shall contain no duplicates, and the number of registered users shall never exceed capacity.
+Derived from persona attribute: Jane – stable system behavior; Mo – explicit correctness expectations
+
+C13: After any completed operation, status queries shall immediately reflect the most recent committed system state.
+Derived from persona attribute: Jane – reliable automation; Mo – reduced uncertainty
+
+---
+
+## 5. Acceptance Criteria
+
+AC1: If the event is full and multiple users are waitlisted, the first waitlisted user shall always be promoted first when a registered user cancels.
+
+AC2: If a registered user cancels while the waitlist is non-empty, exactly one user shall be promoted automatically within the same cancellation operation.
+
+AC3: Each successful register or cancel operation shall return one concise outcome summary message and one updated state snapshot.
+
+AC4: Running the same sequence of operations on a fresh system twice shall produce identical final registered and waitlisted lists and identical successful summary messages.
+
+AC5: A duplicate registration attempt shall raise ValueError with a clear message and shall not change the system state.
+
+AC6: A cancellation request for a user not in the system shall raise ValueError with a clear message and shall not change the system state.
+
+AC7: A promotion response shall identify the promoted user and explain that the promotion occurred because a registered spot became available.
+
+AC8: For capacity = 0, all registration requests shall go to the waitlist.
+
+AC9: Cancelling a waitlisted user shall remove that user from the waitlist, shall not promote anyone, and shall preserve the order of the remaining waitlisted users.
+
+AC10: If a user cancels and later re-registers while the event is full, that user shall re-enter at the end of the waitlist as a new request.
+
+AC11: After any completed registration, cancellation, or promotion, get_status(email) shall immediately reflect the updated state.
+
+AC12: Repeating the same invalid registration or invalid cancellation request on an unchanged state shall produce the same error behavior and leave the system unchanged.
+
+---
+
+## 6. Edge Cases
+
+EC1:
+Expected system behavior:
+If capacity = 0, every registration request goes directly to the waitlist.
+
+EC2:
+Expected system behavior:
+If a registered or waitlisted user attempts to register again, the system raises ValueError and the state remains unchanged.
+
+EC3:
+Expected system behavior:
+If cancel(email) is called for an email not currently in the system, the system raises ValueError and the state remains unchanged.
+
+EC4:
+Expected system behavior:
+If a waitlisted user cancels before promotion, that user is removed from the waitlist and no one is promoted.
+
+EC5:
+Expected system behavior:
+If a registered user cancels while the waitlist is non-empty, the first waitlisted user is promoted immediately and appended to the end of the registered list.
+
+EC6:
+Expected system behavior:
+If a user cancels and later re-registers while the event is still full, the user joins the end of the waitlist as a new request.
+
+EC7:
+Expected system behavior:
+Repeated invalid cancellation of the same non-existent user always raises the same type of error and leaves the state unchanged.
+
+EC8:
+Expected system behavior:
+Repeated duplicate registration of the same existing user always raises the same type of error and leaves the state unchanged.
+
+EC9:
+Expected system behavior:
+For capacity = 0, cancelling a waitlisted user removes that user only and does not trigger promotion.
+
+---
+
+## 7. Traceability
+
+FR1 -> C10, C12 -> AC3
+FR2 -> C10, C12 -> AC3
+FR3 -> C1, C8 -> AC1, AC8
+FR4 -> C1, C2, C7, C9, C10 -> AC1, AC2, AC7
+FR5 -> C8, C12 -> AC9
+FR6 -> C5, C6, C11 -> AC5, AC6, AC12
+FR7 -> C3, C7 -> AC3, AC7
+FR8 -> C4, C8, C11 -> AC4, AC12
+FR9 -> C13 -> AC11
+
+---
+
+## Revision Notes
+
+Revision Note 1
+Requirement updated: FR4, C9
+Reason: During requirement review, the LLM identified ambiguity about whether waitlist promotion should occur atomically during cancellation.
+Action: Added an explicit atomic-promotion rule stating that promotion must occur within the same cancellation operation.
+Triggered by: LLM feedback
+
+Revision Note 2
+Requirement updated: FR1, FR4, C10
+Reason: During requirement review, the LLM identified that the ordering semantics of the registered list were underspecified.
+Action: Defined that the registered list preserves deterministic order and promoted users are appended to the end.
+Triggered by: LLM feedback
+
+Revision Note 3
+Requirement updated: FR6, C11, AC12, EC7, EC8
+Reason: During requirement review, the LLM identified ambiguity in repeated invalid operations and error behavior.
+Action: Clarified that invalid operations raise deterministic descriptive ValueError messages and leave the system state unchanged.
+Triggered by: LLM feedback
+
+Revision Note 4
+Requirement updated: C12
+Reason: During requirement review, the LLM identified missing explicit invariants.
+Action: Added explicit invariants for uniqueness, capacity bounds, and valid list membership.
+Triggered by: LLM feedback
+
+Revision Note 5
+Requirement updated: C3, C7, AC7, AC11, EC9
+Reason: During requirement review, the LLM identified ambiguity in concise summaries, promotion explanations, immediate status visibility, and zero-capacity boundary behavior.
+Action: Clarified output expectations, promotion explanation requirements, immediate status visibility, and zero-capacity cancellation behavior.
+Triggered by: LLM feedback
