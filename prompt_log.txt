@@ -1,6 +1,195 @@
 ## Student Name:
-## Student ID: 
+## Student ID: 218140046
 
-Prompt #1: {}
-Response #1: {}
---------------------------------------------------
+**Prompt #1:**
+I am designing a Python module to manage an Event Registration system with a Waitlist. My goal is to use "Vibe Coding", where I provide the requirements and you will eventually help me generate the implementation. However, DO NOT GENERATE ANY PYTHON CODE YET. First, please review my specifications below.
+
+**1. Problem Summary:** The system must manage registration for a single event with a fixed capacity. It handles registering users, managing a FIFO (First-In-First-Out) waitlist when capacity is reached, and automatically promoting waitlisted users when registered users cancel.
+
+**2. Functional Requirements:**
+
+* Accept a fixed capacity upon initialization.
+* Register users until the maximum capacity is reached.
+* Place any additional users into a waitlist based on strict FIFO ordering.
+* Automatically promote the earliest waitlisted user into the registered list when a currently registered user cancels.
+* Prevent duplicate registrations (a user cannot register twice).
+* Allow users to query their current status (e.g., Registered, Waitlisted, Not Registered).
+* Output the updated registration state and ordered lists of registered and waitlisted users after each operation.
+
+**3. Constraints & Invariants:**
+
+* The total number of registered users must never exceed the fixed capacity.
+* Waitlist ordering must strictly preserve FIFO behavior.
+* Promotions must occur deterministically under identical operation sequences.
+* A user may not appear more than once in the entire system.
+* A user may not simultaneously exist in multiple states.
+* The system state must remain consistent after every operation.
+
+**4. Acceptance Criteria & Edge Cases:**
+
+* AC1: Initialization with a capacity equal to zero.
+* AC2: Multiple cancellations occurring in rapid sequence.
+* AC3: Users attempting to re-register after previously canceling.
+* AC4: Waitlisted users canceling their spot before they are promoted.
+* AC5: Accurate user status queries even during state transitions.
+
+**My Question for You:** Based on the requirements, constraints, and acceptance criteria provided above, are there any ambiguities, missing constraints, or missing clarifications that we need to resolve before you begin implementing the Python code? Please ask me any clarifying questions necessary to ensure a flawless implementation.
+
+**Response #1:**
+Your requirements cover almost all of the classic pitfalls. Before we move to code generation, I've found a few minor ambiguities to lock down:
+
+**1. Data Types and User Identity**
+
+* **What constitutes a "User"?** Should we assume unique strings (emails), integers, or custom objects? If objects, is standard equality sufficient?
+
+**2. Behavior and Edge Cases**
+
+* **Re-registration Policy (AC3):** Should they be treated as brand new users (back of the waitlist), or is there a grace period?
+* **Invalid Cancellations:** What happens if a user not in the system cancels? Raise an exception, return a boolean, or fail silently?
+* **Duplicate Registration Attempts:** Should this raise an exception or simply be ignored?
+
+**3. Architecture and Environment**
+
+* **Thread Safety (AC5):** Does "state transitions" imply a concurrent environment (async/multithreading)? If so, we need locking mechanisms.
+* **Output Mechanism:** Should methods return a data structure (dictionary/tuple) or literally print to `stdout`?
+
+Would you like to clarify these points, or should I make standard assumptions and proceed?
+
+---
+
+**Prompt #2:**
+Thank you for the clarifying questions. Here are the definitive answers:
+
+**1. Data Types and User Identity:**
+
+* **User Representation:** Unique string representing an email address. **Equality:** Standard string equality.
+
+**2. Behavior and Edge Cases:**
+
+* **Re-registration Policy (AC3):** Treated as brand new users (back of the waitlist). **Invalid Cancellations:** Must explicitly raise a `ValueError`. **Duplicate Registration Attempts:** Must raise a `ValueError` immediately.
+
+**3. Architecture and Environment:**
+
+* **Thread Safety:** Single-threaded environment; no locking needed. **Output Mechanism:** Methods (register/cancel) should return a dictionary: `{"capacity": int, "registered": [list], "waitlisted": [list]}`.
+
+Now that all ambiguities are resolved, please generate the complete Python implementation encapsulated within a single class `EventRegistration`. Ensure it is well-commented and adheres to all constraints.
+
+**Response #2:**
+Here is the complete Python implementation of the `EventRegistration` system, integrating all constraints including $O(1)$ status lookups and automated FIFO promotions.
+
+```python
+class EventRegistration:
+    def __init__(self, capacity: int):
+        if capacity < 0:
+            raise ValueError("Capacity cannot be negative.")
+        self.capacity = capacity
+        [cite_start]self.registered = [] [cite: 42]
+        self.waitlisted = []
+        self._user_status = {}
+
+    def _generate_state_report(self) -> dict:
+        [cite_start]return { [cite: 43]
+            "capacity": self.capacity,
+            "registered": list(self.registered),
+            "waitlisted": list(self.waitlisted)
+        }
+
+    def register(self, email: str) -> dict:
+        [cite_start]if email in self._user_status: [cite: 46]
+            raise ValueError(f"Registration failed: '{email}' already in system.")
+        [cite_start]if len(self.registered) < self.capacity: [cite: 47]
+            self.registered.append(email)
+            self._user_status[email] = "Registered"
+        else:
+            self.waitlisted.append(email)
+            self._user_status[email] = "Waitlisted"
+        return self._generate_state_report()
+
+    def cancel(self, email: str) -> dict:
+        [cite_start]if email not in self._user_status: [cite: 50]
+            raise ValueError(f"Cancellation failed: '{email}' not found.")
+        current_status = self._user_status[email]
+        if current_status == "Registered":
+            self.registered.remove(email)
+            [cite_start]del self._user_status[email] [cite: 51]
+            if self.waitlisted:
+                [cite_start]promoted_user = self.waitlisted.pop(0) [cite: 52]
+                self.registered.append(promoted_user)
+                self._user_status[promoted_user] = "Registered"
+        elif current_status == "Waitlisted":
+            self.waitlisted.remove(email)
+            del self._user_status[email]
+        return self._generate_state_report()
+
+    def get_status(self, email: str) -> str:
+        [cite_start]return self._user_status.get(email, "Not Registered") [cite: 54-55]
+
+```
+
+Would you like me to draft a suite of `pytest` unit tests next?
+
+---
+
+**Prompt #3:**
+The implementation looks solid. Now, write the test suite in `tests.py` using Python's built-in `unittest` framework. Implement exactly 5 distinct test methods including proper assertions:
+
+1. **Test 1 (Standard Flow):** Register to capacity, waitlist one user, cancel a registered user to trigger promotion.
+2. **Test 2 (AC1 Zero Capacity):** Verify all users go straight to waitlist.
+3. **Test 3 (AC3 Re-registration):** Register, cancel, and re-register to verify placement at the back of the waitlist.
+4. **Test 4 (AC4 Waitlist Cancellation):** Fill event, waitlist two, have the first waitlisted cancel; verify the second moves up and no one is promoted.
+5. **Test 5 (Constraints & Exceptions):** Test negative capacity, duplicate registration, and non-existent cancellation to verify `ValueError`.
+
+**Response #3:**
+Here is the `tests.py` file implementing the 5 scenarios specified:
+
+```python
+import unittest
+
+class TestEventRegistration(unittest.TestCase):
+    [cite_start]def test_standard_flow_and_promotion(self): [cite: 71-72]
+        system = EventRegistration(capacity=2)
+        system.register("alice@example.com")
+        system.register("bob@example.com")
+        system.register("charlie@example.com")
+        state = system.cancel("alice@example.com")
+        self.assertEqual(state["registered"], ["bob@example.com", "charlie@example.com"])
+        self.assertEqual(state["waitlisted"], [])
+
+    [cite_start]def test_zero_capacity_initialization(self): [cite: 73]
+        system = EventRegistration(capacity=0)
+        state = system.register("alice@example.com")
+        self.assertEqual(state["registered"], [])
+        self.assertEqual(state["waitlisted"], ["alice@example.com"])
+
+    [cite_start]def test_reregistration_goes_to_back_of_waitlist(self): [cite: 74-76]
+        system = EventRegistration(capacity=1)
+        system.register("alice@example.com")
+        system.register("bob@example.com")
+        system.register("charlie@example.com")
+        system.cancel("bob@example.com")
+        state = system.register("bob@example.com")
+        self.assertEqual(state["waitlisted"], ["charlie@example.com", "bob@example.com"])
+
+    [cite_start]def test_waitlist_cancellation(self): [cite: 77-79]
+        system = EventRegistration(capacity=1)
+        system.register("alice@example.com")
+        system.register("bob@example.com")
+        system.register("charlie@example.com")
+        state = system.cancel("bob@example.com")
+        self.assertEqual(state["registered"], ["alice@example.com"])
+        self.assertEqual(state["waitlisted"], ["charlie@example.com"])
+
+    [cite_start]def test_constraints_and_exceptions(self): [cite: 80-81]
+        with self.assertRaises(ValueError): EventRegistration(capacity=-1)
+        system = EventRegistration(capacity=2)
+        system.register("alice@example.com")
+        with self.assertRaises(ValueError): system.register("alice@example.com")
+        with self.assertRaises(ValueError): system.cancel("nobody@example.com")
+
+if __name__ == "__main__":
+    unittest.main()
+
+```
+
+Would you like me to draft a `README.md` for this module?
+
